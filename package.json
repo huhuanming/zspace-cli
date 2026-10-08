@@ -1,0 +1,18 @@
+{
+  "name": "zpace-cli",
+  "version": "0.1.0",
+  "description": "Dependency-free Node.js CLI, SDK and MCP server for ZSpace NAS",
+  "type": "module",
+  "license": "MIT",
+  "author": "huhuanming",
+  "engines": { "node": ">=22" },
+  "bin": { "zpace": "bin/zpace.js", "zpace-mcp": "bin/zpace-mcp.js" },
+  "exports": { ".": "./src/client.js", "./mcp": "./src/mcp.js" },
+  "files": ["bin", "src", "skills", "README.md", "SECURITY.md", "NOTICE", "LICENSE"],
+  "scripts": { "test": "node --test", "check": "node --check src/client.js && node --check src/mcp.js && node --check bin/zpace.js && node --check bin/zpace-mcp.js" },
+  "repository": { "type": "git", "url": "git+https://github.com/huhuanming/zpace-cli.git" },
+  "homepage": "https://github.com/huhuanming/zpace-cli#readme",
+  "bugs": { "url": "https://github.com/huhuanming/zpace-cli/issues" },
+  "keywords": ["zspace", "nas", "cli", "mcp", "极空间"],
+  "publishConfig": { "access": "public", "registry": "https://registry.npmjs.org/" }
+}
