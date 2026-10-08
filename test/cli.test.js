@@ -22,6 +22,11 @@ test('CLI routes every file operation through the mocked NAS', async t => {
   await cli('cloud-ls', 'quark', '--parent-id', 'folder', '--cursor', '{"version":"1","token":"next"}');
   await cli('cloud-down', 'baidu', nasRoot, '--file-ids', '123', '--yes'); await cli('cloud-down', 'quark', nasRoot, '--folder-ids', 'folder', '--yes');
   await cli('cloud-tasks', 'quark'); await cli('download-add', 'https://example.com/file', nasRoot, '--yes'); await cli('downloads'); await cli('downloads', '--type', 'complete', '--status', 'all', '--start', '1', '--limit', '1');
+  await cli('photo-status'); await cli('photo-pick-types'); await cli('photo-pick-types', '--json');
+  await cli('photo-search', '海边'); await cli('photo-search', '发票', '--mode', 'ocr', '--start', '1', '--limit', '2');
+  await cli('photo-picks'); await cli('photo-picks', '--type', '10', '--start', '1', '--limit', '2', '--order', 'asc');
+  await cli('photo-thumb', `${nasRoot}/photo.jpg`, mock.directory);
+  await cli('photo-thumb', `${nasRoot}/photo.jpg`, mock.directory, '--name', 'large.jpg', '--size', 'large');
   assert.match(await cli('ls', nasRoot, '--long', '--hidden'), /folder/);
   assert.match(await cli('ls', nasRoot), /a.txt/);
   assert.match(await cli('tree', nasRoot, '--depth', '2'), /nested.txt/);
@@ -59,5 +64,5 @@ test('CLI local reports, argument boundaries and MCP executable', async t => {
   assert.equal((await run('zspace-mcp', ['unexpected'])).status, 1);
   assert.equal((await run('zspace-mcp', ['--bad'])).status, 1);
   const messages = [{ jsonrpc: '2.0', id: 1, method: 'initialize', params: { protocolVersion: '2025-11-25' } }, { jsonrpc: '2.0', method: 'notifications/initialized' }, { jsonrpc: '2.0', id: 2, method: 'tools/list' }];
-  const mcp = await run('zspace-mcp', [], messages.map(m => JSON.stringify(m)).join('\n') + '\n'); assert.equal(mcp.status, 0); assert.equal(JSON.parse(mcp.stdout.trim().split('\n')[1]).result.tools.length, 11);
+  const mcp = await run('zspace-mcp', [], messages.map(m => JSON.stringify(m)).join('\n') + '\n'); assert.equal(mcp.status, 0); assert.equal(JSON.parse(mcp.stdout.trim().split('\n')[1]).result.tools.length, 15);
 });

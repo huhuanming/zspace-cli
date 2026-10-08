@@ -28,7 +28,7 @@ test('MCP handshake, schema validation and tool capability gates', async () => {
   assert.equal((await handler(request('tools/list'))).error.code, -32000);
   await initialize(handler);
   const names = (await handler(request('tools/list'))).result.tools.map(t => t.name);
-  assert.equal(names.length, 11); assert.ok(!names.includes('zspace_remove'));
+  assert.equal(names.length, 15); assert.ok(!names.includes('zspace_remove'));
   assert.equal((await handler(request('tools/call', { name: 'zspace_remove', arguments: { paths: '/sata1/my/data/a' } }))).error.code, -32602);
   assert.equal((await handler(request('tools/call', { name: 'zspace_tree', arguments: { path: '/', depth: 101 } }))).error.code, -32602);
   assert.equal((await handler(request('tools/call', { name: 'zspace_ls', arguments: { path: '/', arbitrary: 'value' } }))).error.code, -32602);
@@ -36,7 +36,7 @@ test('MCP handshake, schema validation and tool capability gates', async () => {
   assert.throws(() => createMcpHandler({ credentials, allowWrites: true, root: '//' }), /specific/);
   assert.throws(() => createMcpHandler({ credentials, allowDelete: true }), /requires/);
   const full = createMcpHandler({ credentials, root: '/sata1/my/data/test', localRoot: os.tmpdir(), allowWrites: true, allowDelete: true });
-  await initialize(full); assert.equal((await full(request('tools/list'))).result.tools.length, 20);
+  await initialize(full); assert.equal((await full(request('tools/list'))).result.tools.length, 25);
   assert.equal((await full(request('tools/call', { name: 'zspace_remove', arguments: { paths: '/sata1/my/data/other' } }))).result.isError, true);
 });
 
@@ -49,7 +49,7 @@ test('MCP stdio stays newline JSON and returns parse errors', async () => {
   ]);
   await serveMcp({ input, output: new Writable({ write(chunk, _, cb) { output += chunk.toString(); cb(); } }), credentials });
   const messages = output.trim().split('\n').map(line => JSON.parse(line));
-  assert.equal(messages.length, 3); assert.equal(messages[1].error.code, -32700); assert.equal(messages[2].result.tools.length, 11);
+  assert.equal(messages.length, 3); assert.equal(messages[1].error.code, -32700); assert.equal(messages[2].result.tools.length, 15);
 });
 
 test('all nine scanners report without changing source files', async t => {

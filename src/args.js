@@ -1,6 +1,6 @@
 const booleans = new Set(['json', 'hidden', 'long', 'yes', 'allow-delete', 'write', 'overwrite', 'list', 'help', 'version', 'strict', 'strict-naming', 'split-project-dirs', 'read-tags']);
 const aliases = { a: 'hidden', l: 'long', y: 'yes', d: 'depth', n: 'name', h: 'help', v: 'version' };
-const values = new Set(['config-dir', 'base-url', 'root', 'local-root', 'depth', 'name', 'only', 'limit', 'output', 'max-depth', 'stale-days', 'layout', 'naming', 'dest', 'capacity-gb', 'keep', 'keep-dir', 'top', 'max-issues', 'max-files', 'sample', 'min-size', 'tag-limit', 'archive-years', 'large-gb', 'only-cat', 'project-min-files', 'parent-id', 'page', 'cursor', 'file-ids', 'folder-ids', 'type', 'status', 'start']);
+const values = new Set(['config-dir', 'base-url', 'root', 'local-root', 'depth', 'name', 'only', 'limit', 'output', 'max-depth', 'stale-days', 'layout', 'naming', 'dest', 'capacity-gb', 'keep', 'keep-dir', 'top', 'max-issues', 'max-files', 'sample', 'min-size', 'tag-limit', 'archive-years', 'large-gb', 'only-cat', 'project-min-files', 'parent-id', 'page', 'cursor', 'file-ids', 'folder-ids', 'type', 'status', 'start', 'mode', 'order', 'size']);
 export function parseArgs(argv) {
   const options = {}; const positionals = [];
   for (let i = 0; i < argv.length; i++) {

@@ -30,6 +30,13 @@ export async function mockNas(t) {
         case '/znetdisk/task/list': case '/zdrive/kuake/task/list': data = { list: [] }; break;
         case '/downloader/add/link': data = { id: 'mock-download' }; break;
         case '/downloader/list': data = { list: [], total: 0 }; break;
+        case '/v2/album/conf/load': data = { aiMainOpen: 1, aiSearchOpen: 1, aiOcrOpen: 1 }; break;
+        case '/v2/album/feed/search/ai_state': data = { feedCount: 10, processedCount: 8, runngingStatus: 0 }; break;
+        case '/v2/album/feed/search/create': break;
+        case '/v2/album/feed/search/query': case '/v2/album/ai/ocr/search': case '/v2/album/ai/picking/result':
+          data = { status: 2, total: 1, list: [{ id: 1, name: 'photo.jpg', path: `${nasRoot}/photo.jpg`, size: 5, width: 320, height: 240, ftype: 101, updated_at: 123 }] }; break;
+        case '/v2/album/ai/picking/menu_bar': data = [{ type: 9, name: 'Overall score' }]; break;
+        case '/transcode/thumb': res.setHeader('Content-Type', 'image/jpeg'); res.end(Buffer.from([255, 216, 255, 217])); return;
         case '/v2/file/list': data = { list: list(target).slice(Number(form.get('start')), Number(form.get('start')) + Number(form.get('limit'))) }; break;
         case '/v2/file/info': data = row(target, files.get(target)); break;
         case '/file_search/file_search': data = { list: [...files].filter(([p]) => p.includes(form.get('keyword'))).map(([p, b]) => row(p, b)) }; break;

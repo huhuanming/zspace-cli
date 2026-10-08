@@ -28,6 +28,11 @@ Usage: zspace <command> [arguments] [options]
   cloud-tasks <provider>          Cloud transfer task status
   download-add <link> <NAS-dir>   Add a NAS download task (--yes)
   downloads                      List NAS download tasks (--type, --status)
+  photo-status                   Gallery AI/OCR settings and indexing progress
+  photo-search <text-or-path>     Search image content (--mode ai|ocr|similar, --limit)
+  photo-pick-types                Native picking categories
+  photo-picks                     Existing AI picking results (--type 9|1|10|11)
+  photo-thumb <NAS-path> [dir]    Save a thumbnail (--size small|large, --name)
   skill [dir]                     Install bundled skills (--list, --only a,b)
   scan <skill> <mounted-directory> Read-only local/NAS-share scanner
   diff <old-report> <new-report>   Compare nas-report snapshots
@@ -50,7 +55,8 @@ async function main(argv) {
   const command = p.shift();
   const arities = { check: [0, 0], pools: [0, 0], disks: [0, 0], ls: [0, 1], info: [1, 1], find: [1, 2], tree: [0, 1],
     rename: [2, 2], mkdir: [2, 2], mv: [2, 2], cp: [2, 2], rm: [1, 1], up: [2, 2], down: [1, 2], skill: [0, 1], scan: [2, 2], diff: [2, 2], coverage: [2, 2],
-    'cloud-status': [1, 1], 'cloud-ls': [1, 2], 'cloud-down': [2, 2], 'cloud-tasks': [1, 1], 'download-add': [2, 2], downloads: [0, 0] };
+    'cloud-status': [1, 1], 'cloud-ls': [1, 2], 'cloud-down': [2, 2], 'cloud-tasks': [1, 1], 'download-add': [2, 2], downloads: [0, 0],
+    'photo-status': [0, 0], 'photo-search': [1, 1], 'photo-pick-types': [0, 0], 'photo-picks': [0, 0], 'photo-thumb': [1, 2] };
   const arity = arities[command];
   if (!arity) throw new Error(`Unknown command: ${command}`);
   if (p.length < arity[0] || p.length > arity[1]) throw new Error(`Invalid arguments for ${command}; see zspace --help`);
@@ -77,6 +83,11 @@ async function main(argv) {
       case 'cloud-tasks': data = await client.cloudTasks(p[0]); break;
       case 'download-add': data = await client.addDownload(p[0], p[1]); break;
       case 'downloads': data = await client.listDownloads({ type: o.type, status: o.status, start: integer(o.start, 0, 'start'), limit: integer(o.limit, 50, 'limit') }); break;
+      case 'photo-status': data = await client.photoStatus(); break;
+      case 'photo-search': data = await client.photoSearch(p[0], { mode: o.mode, start: integer(o.start, 0, 'start'), limit: integer(o.limit, 100, 'limit') }); break;
+      case 'photo-pick-types': data = await client.photoPickTypes(); break;
+      case 'photo-picks': data = await client.photoPicks({ type: integer(o.type, 9, 'type'), start: integer(o.start, 0, 'start'), limit: integer(o.limit, 100, 'limit'), order: o.order }); break;
+      case 'photo-thumb': data = await client.photoThumbnail(p[0], p[1], { name: o.name, size: o.size }); break;
       case 'ls': data = await client.ls(p[0], { hidden: o.hidden }); break;
       case 'info': data = await client.info(p[0]); break;
       case 'find': data = await client.search(p[0], p[1], { limit: integer(o.limit, 100, 'limit') }); break;
@@ -91,7 +102,7 @@ async function main(argv) {
     }
   }
   if (o.output) await writeFile(o.output, `${JSON.stringify(data, null, 2)}\n`, { flag: 'wx', mode: 0o600 });
-  if (o.json || !Array.isArray(data)) console.log(JSON.stringify(data, null, 2));
+  if (o.json || !Array.isArray(data) || command === 'photo-pick-types') console.log(JSON.stringify(data, null, 2));
   else for (const row of data) console.log(typeof row === 'string' ? row : command === 'tree'
     ? `${'  '.repeat(row.depth)}${row.isDir ? '📁' : '📄'} ${row.name}`
     : `${row.isDir ? 'DIR ' : 'FILE'} ${String(row.size).padStart(12)} ${o.long ? row.path : row.name}`);

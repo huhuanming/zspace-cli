@@ -148,6 +148,55 @@ export class ZSpaceClient {
       || !Number.isSafeInteger(start) || start < 0 || !Number.isSafeInteger(limit) || limit < 1 || limit > 1000) throw new Error('Invalid download task query');
     return (await this.#json('/downloader/list', { type, status, start, size: limit }, { retry: true })).data;
   }
+  async photoStatus() {
+    const config = (await this.#json('/v2/album/conf/load', {}, { retry: true })).data;
+    const state = (await this.#json('/v2/album/feed/search/ai_state', {}, { retry: true })).data;
+    return { aiEnabled: config.aiMainOpen, searchEnabled: config.aiSearchOpen, ocrEnabled: config.aiOcrOpen,
+      indexed: state.processedCount, total: state.feedCount, runningStatus: state.runngingStatus };
+  }
+  #photoPagination(start, limit) {
+    if (!Number.isSafeInteger(start) || start < 0 || !Number.isSafeInteger(limit) || limit < 1 || limit > 1000) throw new Error('Invalid photo pagination');
+  }
+  #photoPage(data, limit) {
+    if (!Array.isArray(data.list)) throw new Error('Invalid photo response');
+    const entries = data.list.slice(0, limit).filter(row => {
+      if (typeof row.path !== 'string') throw new Error('Invalid photo path');
+      // Encrypted/shared paths cannot be bounded by a NAS filesystem root.
+      return !row.path.startsWith('E.');
+    }).map(row => ({ id: String(row.id), name: basename(row.name), path: remotePath(row.path), size: Number(row.size) || 0,
+      width: row.width, height: row.height, type: row.ftype, updatedAt: row.updated_at }))
+      .filter(row => this.#root === '/' || row.path === this.#root || row.path.startsWith(`${this.#root}/`));
+    return { entries, pageFull: data.list.length >= limit };
+  }
+  async photoSearch(query, { mode = 'ai', start = 0, limit = 100 } = {}) {
+    this.#photoPagination(start, limit);
+    if (!['ai', 'ocr', 'similar'].includes(mode) || typeof query !== 'string' || !query.trim() || query.length > 4096 || /[\x00-\x1f\x7f]/.test(query)) throw new Error('Invalid photo search query');
+    if (mode !== 'ocr' && start !== 0) throw new Error('AI search returns top candidates; start must be zero');
+    const params = { input_modal: mode === 'similar' ? 0 : 1, query_content: mode === 'similar' ? this.#path(query) : query, top_limit: limit };
+    if (mode === 'ocr') return this.#photoPage((await this.#json('/v2/album/ai/ocr/search', { ...params, start, num: limit }, { retry: true })).data, limit);
+    // The native protocol creates a transient query, not an album or indexing task.
+    await this.#json('/v2/album/feed/search/create', params);
+    const deadline = Date.now() + this.#timeout;
+    for (;;) {
+      const data = (await this.#json('/v2/album/feed/search/query', params, { retry: true })).data;
+      if (data.status !== 1) {
+        if (data.status === 3) throw new Error('NAS photo search failed');
+        return this.#photoPage(data, limit);
+      }
+      if (Date.now() >= deadline) throw new Error('NAS photo search timed out');
+      await new Promise(resolve => setTimeout(resolve, Math.min(1000, this.#timeout)));
+    }
+  }
+  async photoPickTypes() {
+    const data = (await this.#json('/v2/album/ai/picking/menu_bar', {}, { retry: true })).data;
+    if (!Array.isArray(data)) throw new Error('Invalid photo picking categories');
+    return data.map(row => ({ type: row.type, name: row.name }));
+  }
+  async photoPicks({ type = 9, start = 0, limit = 100, order = 'desc' } = {}) {
+    this.#photoPagination(start, limit);
+    if (![9, 1, 10, 11].includes(type) || !['asc', 'desc'].includes(order)) throw new Error('Invalid photo picking query');
+    return this.#photoPage((await this.#json('/v2/album/ai/picking/result', { selection_type: type, threshold_score: 0, start, num: limit, order }, { retry: true })).data, limit);
+  }
   async ls(value = '/sata1/my/data', { hidden = false, pageSize = 50 } = {}) {
     const directory = this.#path(value);
     if (!Number.isSafeInteger(pageSize) || pageSize < 1 || pageSize > 50) throw new Error('pageSize must be 1..50');
@@ -244,6 +293,13 @@ export class ZSpaceClient {
     return { path: target, name: path.posix.basename(target), size: total };
   }
   async download(remote, directory = '.', { name, overwrite = false, onProgress = () => {} } = {}) {
+    return this.#download(remote, directory, { name, overwrite, onProgress, thumbnail: false });
+  }
+  async photoThumbnail(remote, directory = '.', { name, size = 'small' } = {}) {
+    if (!['small', 'large'].includes(size)) throw new Error('Thumbnail size must be small or large');
+    return this.#download(remote, directory, { name: name ?? `${path.posix.basename(remote)}.thumb.jpg`, overwrite: false, onProgress: () => {}, thumbnail: true, size });
+  }
+  async #download(remote, directory, { name, overwrite, onProgress, thumbnail, size }) {
     const source = this.#path(remote);
     // Validate the existing parent before creating an explicit output directory.
     const requested = path.resolve(directory);
@@ -258,9 +314,15 @@ export class ZSpaceClient {
     let fh; let response;
     try {
       fh = await open(temp, 'wx', 0o600);
-      response = await this.#request('/v2/file/download', { method: 'GET', query: { path: source, remote_port: '8050' } });
+      response = await this.#request(thumbnail ? '/transcode/thumb' : '/v2/file/download', { method: 'GET', query: thumbnail
+        ? { file_path: source, dest_fmt: size, request_purpose: '5' } : { path: source, remote_port: '8050' } });
+      if (thumbnail && !/^image\/(jpeg|png|webp|gif)(?:;|$)/i.test(response.headers['content-type'])) throw new Error('Proxy did not return a supported thumbnail image');
       const total = Number(response.headers['content-length'] ?? 0); let received = 0;
-      for await (const chunk of response) { await fh.writeFile(chunk); received += chunk.length; onProgress(received, total); }
+      for await (const chunk of response) {
+        received += chunk.length;
+        if (thumbnail && received > 16 * 1024 * 1024) { response.destroy(); throw new Error('Thumbnail is too large'); }
+        await fh.writeFile(chunk); onProgress(received, total);
+      }
       if (total && received !== total) throw new Error('Incomplete download');
       await fh.close(); fh = null;
       if (overwrite) await rename(temp, out); else { await link(temp, out); await unlink(temp); }

@@ -1,6 +1,6 @@
 {
   "name": "zspace-cli",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "Dependency-free Node.js CLI, SDK and MCP server for ZSpace NAS",
   "type": "module",
   "license": "MIT",
@@ -8,7 +8,7 @@
   "engines": { "node": ">=22" },
   "bin": { "zspace": "bin/zspace.js", "zspace-mcp": "bin/zspace-mcp.js" },
   "exports": { ".": "./src/client.js", "./mcp": "./src/mcp.js" },
-  "files": ["bin", "src", "skills", "README.md", "SECURITY.md", "NOTICE", "LICENSE"],
+  "files": ["bin", "src", "skills", "README.md", "README.en.md", "SECURITY.md", "NOTICE", "LICENSE"],
   "scripts": {
     "test": "node --test --experimental-test-module-mocks",
     "test:coverage": "node --test --experimental-test-module-mocks --experimental-test-coverage --test-coverage-include='src/**/*.js' --test-coverage-include='bin/**/*.js' --test-coverage-lines=100 --test-coverage-branches=100 --test-coverage-functions=100 --test-reporter=spec --test-reporter-destination=stdout --test-reporter=./scripts/coverage-report.mjs --test-reporter-destination=stderr",

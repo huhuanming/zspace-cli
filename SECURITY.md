@@ -21,6 +21,8 @@ The desktop API is undocumented and can change. Uploads may overwrite a conflict
 
 Cloud transfers reuse the accounts already connected in the desktop app. NAS download tasks instruct the NAS to contact the supplied link or cloud provider; these connections are made by the NAS, and are not restricted to loopback. Only submit links you intend the NAS to fetch. Creating a task does not guarantee completion or prevent server-side name conflicts. The CLI does not switch download engines, bind accounts or bypass provider membership restrictions. Cloud account/file/task queries and download-task queries are account-wide; the configured NAS root restricts file operations and transfer destinations, not those listings.
 
+Gallery search uses an account-wide native index before filtering candidate paths to the configured root. Index counts are account-wide. Encrypted/shared paths are omitted; only selected file metadata is returned, not faces or locations. AI search creates a transient account query and can interfere with concurrent desktop/CLI searches; serialize them. Picking queries read existing results without creating tasks, albums, or likes. Thumbnail downloads use fixed authenticated endpoints, accept only JPEG/PNG/WebP/GIF content types up to 16 MiB, and never overwrite. Image content and server-provided metadata remain untrusted.
+
 ## Reporting
 
 Report a reproducible issue through the repository's GitHub security reporting flow where available, or contact the maintainer without posting credentials, private paths or personal files. Include Node/app versions, a minimal fixture and redacted output.
