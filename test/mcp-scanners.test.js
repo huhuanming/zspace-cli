@@ -18,7 +18,7 @@ async function initialize(handler) {
   await handler({ jsonrpc: '2.0', method: 'notifications/initialized' });
 }
 async function folder(t) {
-  const root = await mkdtemp(path.join(os.tmpdir(), 'zpace-scan-'));
+  const root = await mkdtemp(path.join(os.tmpdir(), 'zspace-scan-'));
   t.after(() => rm(root, { recursive: true, force: true })); return root;
 }
 
@@ -109,10 +109,10 @@ test('backup coverage exposes missing/changed metadata and snapshot growth', asy
 
 test('skills install selectively and never overwrite; CLI parses literal arguments', async t => {
   const root = await folder(t); const list = await installSkills(undefined, { list: true }); assert.equal(list.length, 10);
-  await installSkills(root, { only: 'zspace-nas' }); assert.ok((await readFile(path.join(root, 'zspace-nas', 'SKILL.md'), 'utf8')).includes('zpace'));
+  await installSkills(root, { only: 'zspace-nas' }); assert.ok((await readFile(path.join(root, 'zspace-nas', 'SKILL.md'), 'utf8')).includes('zspace'));
   await assert.rejects(installSkills(root, { only: 'zspace-nas' }), /already exists/);
   const run = promisify(execFile);
-  const bin = fileURLToPath(new URL('../bin/zpace.js', import.meta.url));
+  const bin = fileURLToPath(new URL('../bin/zspace.js', import.meta.url));
   assert.equal((await run(process.execPath, [bin, '--version'])).stdout.trim(), '0.1.0');
   const report = JSON.parse((await run(process.execPath, [bin, 'scan', 'nas-report', root, '--json'])).stdout); assert.equal(report.readOnly, true);
   await assert.rejects(run(process.execPath, [bin, 'mkdir', '/sata1/my/data', 'a']), /Writes are disabled/);

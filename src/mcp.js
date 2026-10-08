@@ -52,7 +52,7 @@ export function createMcpHandler(options = {}) {
       if (!params || typeof params.protocolVersion !== 'string') return error(-32602, 'protocolVersion is required');
       state = 'initializing';
       const supported = ['2025-11-25', '2025-06-18', '2025-03-26', '2024-11-05'];
-      return result({ protocolVersion: supported.includes(params.protocolVersion) ? params.protocolVersion : supported[0], capabilities: { tools: { listChanged: false } }, serverInfo: { name: 'zpace-cli', version: '0.1.0' } });
+      return result({ protocolVersion: supported.includes(params.protocolVersion) ? params.protocolVersion : supported[0], capabilities: { tools: { listChanged: false } }, serverInfo: { name: 'zspace-cli', version: '0.1.0' } });
     }
     if (method === 'ping') return result({});
     if (state !== 'ready') return error(-32000, 'Initialize the MCP session first');

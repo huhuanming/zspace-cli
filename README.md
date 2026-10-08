@@ -1,4 +1,4 @@
-# zpace-cli
+# zspace-cli
 
 用 Node.js 管理极空间 NAS：命令行、SDK、MCP，以及 9 个只读整理扫描器。
 
@@ -9,13 +9,13 @@
 需要 Node.js 22 或更新版本；极空间桌面客户端必须启动、登录并连接 NAS。
 
 ```sh
-npm install -g zpace-cli@0.1.0
-zpace --version
-zpace check
-zpace pools
+npm install -g zspace-cli@0.1.0
+zspace --version
+zspace check
+zspace pools
 ```
 
-命令叫 **`zpace`**，npm 包叫 **`zpace-cli`**。自动读取桌面客户端的 `vuex.json` 登录状态；不会复制或打印 token。macOS 默认目录是 `~/Library/Application Support/zspace`，Windows/Linux 也提供目录探测。其他安装位置可用 `--config-dir <目录>` 或 `ZS_CONFIG_DIR` 指定。
+命令叫 **`zspace`**，npm 包叫 **`zspace-cli`**。自动读取桌面客户端的 `vuex.json` 登录状态；不会复制或打印 token。macOS 默认目录是 `~/Library/Application Support/zspace`，Windows/Linux 也提供目录探测。其他安装位置可用 `--config-dir <目录>` 或 `ZS_CONFIG_DIR` 指定。
 
 默认只访问 `http://127.0.0.1:13579`。`--base-url` / `ZS_BASE_URL` 只能指定 HTTP 回环地址 `127.0.0.1` 或 `[::1]`，不会跟随重定向，也不会使用环境代理。
 
@@ -24,19 +24,19 @@ zpace pools
 ## 文件操作
 
 ```sh
-zpace ls /sata1/my/data --hidden --long
-zpace info '/sata1/my/data/文件.txt' --json
-zpace find '课程' /sata1/my/data --limit 100
-zpace tree /sata1/my/data --depth 3
-zpace disks
+zspace ls /sata1/my/data --hidden --long
+zspace info '/sata1/my/data/文件.txt' --json
+zspace find '课程' /sata1/my/data --limit 100
+zspace tree /sata1/my/data --depth 3
+zspace disks
 
-zpace mkdir /sata1/my/data '测试目录' --yes
-zpace rename '/sata1/my/data/测试目录/a.txt' 'b.txt' --yes
-zpace cp '/sata1/my/data/测试目录/*.txt' /sata1/my/data/副本 --yes
-zpace mv '/sata1/my/data/测试目录/b.txt' /sata1/my/data/副本 --yes
-zpace up ./example.txt /sata1/my/data/测试目录 --yes
-zpace down '/sata1/my/data/测试目录/*.txt' ./downloads
-zpace rm '/sata1/my/data/测试目录/*.txt' --yes --allow-delete
+zspace mkdir /sata1/my/data '测试目录' --yes
+zspace rename '/sata1/my/data/测试目录/a.txt' 'b.txt' --yes
+zspace cp '/sata1/my/data/测试目录/*.txt' /sata1/my/data/副本 --yes
+zspace mv '/sata1/my/data/测试目录/b.txt' /sata1/my/data/副本 --yes
+zspace up ./example.txt /sata1/my/data/测试目录 --yes
+zspace down '/sata1/my/data/测试目录/*.txt' ./downloads
+zspace rm '/sata1/my/data/测试目录/*.txt' --yes --allow-delete
 ```
 
 所有 NAS 写操作需要 `--yes`，删除额外需要 `--allow-delete`。用 `--root /sata1/my/data/测试目录` 限制远程访问范围，用 `--local-root /absolute/local/dir` 限制上传来源和下载目录。程序拒绝路径穿越以及重命名、移动或删除存储池/允许范围的根目录。
@@ -50,7 +50,7 @@ zpace rm '/sata1/my/data/测试目录/*.txt' --yes --allow-delete
 ## SDK
 
 ```js
-import { ZSpaceClient } from 'zpace-cli';
+import { ZSpaceClient } from 'zspace-cli';
 
 const client = new ZSpaceClient({ root: '/sata1/my/data/课程' });
 console.log(await client.ls('/sata1/my/data/课程'));
@@ -75,8 +75,8 @@ await writer.upload('/absolute/local/dir/example.txt', '/sata1/my/data/测试目
 ```json
 {
   "mcpServers": {
-    "zpace": {
-      "command": "zpace-mcp",
+    "zspace": {
+      "command": "zspace-mcp",
       "args": ["--root", "/sata1/my/data/课程"]
     }
   }
@@ -94,13 +94,13 @@ stdio 使用换行分隔的 JSON-RPC，不向 stdout 输出日志。支持 MCP 2
 扫描器读取**本地目录或已经挂载的 NAS 共享目录**。远程 `/sata1/...` API 路径不能直接交给本地扫描器。所有扫描器只生成统计、问题和建议，不执行移动或删除。
 
 ```sh
-zpace scan nas-report /Volumes/MyNAS --json --output ./snapshot.json
-zpace scan file-sorter /Volumes/MyNAS/Downloads --layout type-year --naming zh
-zpace scan dedup-finder /Volumes/MyNAS --min-size 1048576
-zpace diff ./old.json ./snapshot.json --capacity-gb 8000
-zpace coverage /Volumes/MyNAS/工作 /Volumes/Backup/工作
-zpace skill --list
-zpace skill ~/.codex/skills --only zspace-nas,nas-report
+zspace scan nas-report /Volumes/MyNAS --json --output ./snapshot.json
+zspace scan file-sorter /Volumes/MyNAS/Downloads --layout type-year --naming zh
+zspace scan dedup-finder /Volumes/MyNAS --min-size 1048576
+zspace diff ./old.json ./snapshot.json --capacity-gb 8000
+zspace coverage /Volumes/MyNAS/工作 /Volumes/Backup/工作
+zspace skill --list
+zspace skill ~/.codex/skills --only zspace-nas,nas-report
 ```
 
 | 扫描器 | 功能 |

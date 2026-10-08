@@ -195,7 +195,7 @@ export class ZSpaceClient {
     const out = path.join(dest, basename(name ?? path.posix.basename(source)));
     const previous = await exists(out);
     if (previous && (!overwrite || previous.isSymbolicLink() || !previous.isFile())) throw new Error('Destination exists; use overwrite only for a regular file');
-    const temp = path.join(dest, `.zpace-${randomUUID()}.part`);
+    const temp = path.join(dest, `.zspace-${randomUUID()}.part`);
     let fh; let response;
     try {
       fh = await open(temp, 'wx', 0o600);

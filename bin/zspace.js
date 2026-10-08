@@ -6,9 +6,9 @@ import { scan, diffReports, backupCoverage } from '../src/scanners.js';
 import { readFile, writeFile } from 'node:fs/promises';
 
 const pkg = JSON.parse(await readFile(new URL('../package.json', import.meta.url), 'utf8'));
-const help = `zpace-cli ${pkg.version} — ZSpace NAS CLI (Node.js, no dependencies)
+const help = `zspace-cli ${pkg.version} — ZSpace NAS CLI (Node.js, no dependencies)
 
-Usage: zpace <command> [arguments] [options]
+Usage: zspace <command> [arguments] [options]
   check                            Check connection and storage pools
   pools | disks                    Storage pool info / disk statistics
   ls [path]                        List directory (--hidden, --long)
@@ -34,7 +34,7 @@ Default directory: /sata1/my/data; specify the actual path for another pool.
 Scanners: nas-report, file-sorter, photo-organizer, music-organizer,
           work-organizer, portfolio-organizer, download-cleaner,
           dedup-finder, backup-auditor
-MCP: zpace-mcp (read-only); enable writes with --write --root <path>.
+MCP: zspace-mcp (read-only); enable writes with --write --root <path>.
 `;
 
 async function main(argv) {
@@ -46,7 +46,7 @@ async function main(argv) {
     rename: [2, 2], mkdir: [2, 2], mv: [2, 2], cp: [2, 2], rm: [1, 1], up: [2, 2], down: [1, 2], skill: [0, 1], scan: [2, 2], diff: [2, 2], coverage: [2, 2] };
   const arity = arities[command];
   if (!arity) throw new Error(`Unknown command: ${command}`);
-  if (p.length < arity[0] || p.length > arity[1]) throw new Error(`Invalid arguments for ${command}; see zpace --help`);
+  if (p.length < arity[0] || p.length > arity[1]) throw new Error(`Invalid arguments for ${command}; see zspace --help`);
   let data;
   if (command === 'skill') data = await installSkills(p[0], { list: o.list, only: o.only });
   else if (command === 'scan') data = await scan(p[0], p[1], { depth: integer(o['max-depth'], 6, 'max-depth'), staleDays: integer(o['stale-days'], p[0] === 'backup-auditor' ? 35 : p[0] === 'download-cleaner' ? 365 : 1095, 'stale-days'),

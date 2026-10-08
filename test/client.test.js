@@ -14,7 +14,7 @@ const root = '/sata1/my/data/test';
 const json = (res, data = {}, code = '200', msg) => res.end(JSON.stringify({ code, data, msg }));
 const entry = (name, parent = root, isDir = false) => ({ name, path: `${parent}/${name}`, is_dir: isDir ? '1' : '0', size: '12' });
 async function fixture(t, handler, options = {}) {
-  const local = await mkdtemp(path.join(os.tmpdir(), 'zpace-test-'));
+  const local = await mkdtemp(path.join(os.tmpdir(), 'zspace-test-'));
   const requests = [];
   const server = http.createServer(async (req, res) => {
     try {
