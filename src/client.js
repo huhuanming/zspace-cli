@@ -11,6 +11,16 @@ export class ZSpaceError extends Error {
   constructor(code, message) { super(`[${code}] ${message}`); this.name = 'ZSpaceError'; this.code = String(code); }
 }
 
+const cloudEndpoints = { baidu: '/znetdisk', quark: '/zdrive/kuake' };
+function cloudEndpoint(provider) {
+  if (!Object.hasOwn(cloudEndpoints, provider)) throw new Error('Cloud provider must be baidu or quark');
+  return cloudEndpoints[provider];
+}
+function cloudIds(values) {
+  if (!Array.isArray(values) || values.some(v => typeof v !== 'string' || !/^[A-Za-z0-9_-]{1,256}$/.test(v))) throw new Error('Invalid cloud file IDs');
+  return values.join(',');
+}
+
 export class ZSpaceClient {
   #base; #creds; #configDir; #root; #localRoot; #writes; #deletes; #timeout; #retries; #version; #threshold; #slice;
   constructor({ baseUrl = process.env.ZS_BASE_URL, credentials, configDir, root = '/', localRoot,
@@ -39,12 +49,13 @@ export class ZSpaceClient {
     }
     return text.replace(/[\x00-\x1f\x7f]/g, ' ');
   }
-  async #request(endpoint, { method = 'POST', body, headers = {}, query = {}, authenticated = true, credentials } = {}) {
-    const creds = authenticated ? credentials ?? await this.#credentials() : {};
+  async #request(endpoint, { method = 'POST', body, headers = {}, query = {}, credentials } = {}) {
+    const creds = credentials ?? await this.#credentials();
     const url = new URL(endpoint, this.#base);
     url.search = new URLSearchParams({ rnd: `${Date.now()}_${randomUUID()}`, webagent: 'v2', ...query }).toString();
-    if (authenticated) headers = { Cookie: Object.entries({ token: creds.token, zenithtoken: creds.token,
-      nas_id: creds.nasId, nasid: creds.nasId, device_id: creds.deviceId }).map(([k, v]) => `${k}=${encodeURIComponent(v)}`).join('; '), ...headers };
+    headers = { Cookie: Object.entries({ app: 'file', token: creds.token, zenithtoken: creds.token,
+      nas_id: creds.nasId, nasid: creds.nasId, device_id: creds.deviceId, plat: 'pc',
+      version: creds.appVersion, device: creds.device, _l: 'zh_cn' }).map(([k, v]) => `${k}=${encodeURIComponent(v)}`).join('; '), ...headers };
     return await new Promise((resolve, reject) => {
       // Native http bypasses environment proxies. There is no redirect following.
       const req = http.request(url, { method, headers }, res => {
@@ -91,11 +102,58 @@ export class ZSpaceClient {
   }
   async poolInfo() { return (await this.#json('/zspool/info', {}, { retry: true })).data; }
   async diskStats() { return (await this.#json('/disk/statics', {}, { retry: true })).data; }
+  async cloudStatus(provider) {
+    const data = (await this.#json(`${cloudEndpoint(provider)}/auth/check`, { rd: `${this.#base}/home/newNetdisk` }, { retry: true })).data;
+    return { provider, isLogin: data.is_login === true || data.is_login === 1 };
+  }
+  async cloudList(provider, { path: cloudPath = '/', parentId = '0', page = 1, limit = 100, cursor } = {}) {
+    const base = cloudEndpoint(provider);
+    if (!Number.isSafeInteger(page) || page < 1 || !Number.isSafeInteger(limit) || limit < 1 || limit > 1000) throw new Error('Invalid cloud pagination');
+    let params;
+    if (provider === 'baidu') params = { path: remotePath(cloudPath), page, limit };
+    else {
+      cloudIds([parentId]);
+      params = { parent_file_id: parentId, show_dir: 1, limit, sort: '' };
+      if (cursor) {
+        if (typeof cursor.version !== 'string' || typeof cursor.token !== 'string' || /[\x00-\x1f]/.test(cursor.version + cursor.token)) throw new Error('Invalid cloud cursor');
+        params.cursor_version = cursor.version; params.cursor_token = cursor.token;
+      }
+    }
+    const data = (await this.#json(`${base}/file/${provider === 'baidu' ? 'list' : 'filelist'}`, params, { retry: true })).data;
+    const list = provider === 'baidu' ? data.list : data.file_list;
+    if (!Array.isArray(list)) throw new Error('Invalid cloud directory response');
+    return { provider, entries: list.map(row => provider === 'baidu'
+      ? { id: String(row.fs_id), name: row.server_filename, path: row.path, isDir: String(row.isdir) === '1', size: Number(row.size) || 0 }
+      : { id: String(row.file_id), name: row.name, path: row.path, isDir: row.type !== 'file', size: Number(row.size) || 0 }),
+      hasMore: provider === 'baidu' ? list.length >= limit : !data.last_page, cursor: data.next_query_cursor ?? null };
+  }
+  async cloudDownload(provider, directory, { fileIds = [], folderIds = [] } = {}) {
+    this.#write(); const base = cloudEndpoint(provider); const save_path = this.#path(directory);
+    const files = cloudIds(fileIds); const folders = cloudIds(folderIds);
+    if (!files && !folders) throw new Error('Select at least one cloud file or folder ID');
+    const params = provider === 'baidu' ? { file_ids: cloudIds([...fileIds, ...folderIds]), save_path }
+      : { file_ids: files, folder_ids: folders, save_path };
+    return { accepted: true, provider, directory: save_path, data: (await this.#json(`${base}/${provider === 'baidu' ? 'file' : 'task'}/download`, params)).data };
+  }
+  async cloudTasks(provider) { return (await this.#json(`${cloudEndpoint(provider)}/task/list`, {}, { retry: true })).data; }
+  async addDownload(uri, directory) {
+    this.#write(); const dir = this.#path(directory);
+    if (typeof uri !== 'string' || /[\x00-\x20\x7f]/.test(uri) || !/^(https?|ftps?|sftp|magnet|thunder):/i.test(uri)) throw new Error('Invalid download link');
+    const url = new URL(uri);
+    if (!['magnet:', 'thunder:'].includes(url.protocol) && !url.hostname) throw new Error('Download link needs a hostname');
+    return { accepted: true, directory: dir, data: (await this.#json('/downloader/add/link', { uri, dir })).data };
+  }
+  async listDownloads({ type = 'loading', status = 'all', start = 0, limit = 50 } = {}) {
+    if (!['loading', 'complete'].includes(type) || !['all', 'loading', 'stopped', 'checking', 'error', 'seeding', 'stop-seeding'].includes(status)
+      || !Number.isSafeInteger(start) || start < 0 || !Number.isSafeInteger(limit) || limit < 1 || limit > 1000) throw new Error('Invalid download task query');
+    return (await this.#json('/downloader/list', { type, status, start, size: limit }, { retry: true })).data;
+  }
   async ls(value = '/sata1/my/data', { hidden = false, pageSize = 50 } = {}) {
     const directory = this.#path(value);
     if (!Number.isSafeInteger(pageSize) || pageSize < 1 || pageSize > 50) throw new Error('pageSize must be 1..50');
     const result = []; const seen = new Set();
-    for (let start = 0; ; start += pageSize) {
+    let pageLength = pageSize;
+    for (let start = 0; pageLength >= pageSize; start += pageSize) {
       const data = await this.#json('/v2/file/list', { path: directory, show_hidden: hidden ? '1' : '0', start, limit: pageSize }, { retry: true });
       const list = data.data?.list;
       if (!Array.isArray(list)) throw new Error('Invalid NAS directory response');
@@ -106,8 +164,9 @@ export class ZSpaceClient {
         seen.add(p); result.push({ name: row.name, path: p, isDir: String(row.is_dir) === '1', size: Number(row.size) || 0,
           modifyTime: row.modify_time ?? '', createTime: row.create_time ?? '', ext: row.ext ?? '' });
       }
-      if (list.length < pageSize) return result;
+      pageLength = list.length;
     }
+    return result;
   }
   async info(value) { return (await this.#json('/v2/file/info', { path: this.#path(value) }, { retry: true })).data; }
   async rename(value, name) { this.#write(); return (await this.#json('/v2/file/modify', { path: protectRoot(value, this.#root), newname: basename(name) })).data; }

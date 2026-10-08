@@ -1,5 +1,6 @@
 import { ZSpaceClient } from './client.js';
 import { remotePath } from './safety.js';
+import pkg from '../package.json' with { type: 'json' };
 
 const text = { type: 'string', minLength: 1 };
 const paths = { anyOf: [text, { type: 'array', items: text, minItems: 1 }] };
@@ -9,6 +10,12 @@ const definitions = [
   ['check', 'Check NAS connection', {}, [], 'read', c => c.check()],
   ['pool_info', 'Storage pool capacity', {}, [], 'read', c => c.poolInfo()],
   ['disk_stats', 'Disk diagnostics', {}, [], 'read', c => c.diskStats()],
+  ['cloud_status', 'Cloud login status: baidu or quark', { provider: text }, ['provider'], 'read', (c, a) => c.cloudStatus(a.provider)],
+  ['cloud_ls', 'One page of cloud files; pass Quark cursor JSON for the next page', { provider: text, path: text, parent_id: text, page: { type: 'integer', minimum: 1, maximum: 1000000 }, limit: { type: 'integer', minimum: 1, maximum: 1000 }, cursor: text }, ['provider'], 'read', (c, a) => c.cloudList(a.provider, { path: a.path, parentId: a.parent_id, page: a.page, limit: a.limit, cursor: a.cursor === undefined ? undefined : JSON.parse(a.cursor) })],
+  ['cloud_tasks', 'Cloud transfer task status', { provider: text }, ['provider'], 'read', (c, a) => c.cloudTasks(a.provider)],
+  ['cloud_download', 'Download selected cloud IDs to an allowed NAS directory', { provider: text, remote_dir: text, file_ids: { type: 'array', items: text, minItems: 0 }, folder_ids: { type: 'array', items: text, minItems: 0 } }, ['provider', 'remote_dir'], 'write', (c, a) => c.cloudDownload(a.provider, a.remote_dir, { fileIds: a.file_ids, folderIds: a.folder_ids })],
+  ['download_add', 'Add a link for the NAS to download to an allowed directory', { link: text, remote_dir: text }, ['link', 'remote_dir'], 'write', (c, a) => c.addDownload(a.link, a.remote_dir)],
+  ['downloads', 'NAS download task status', { type: text, status: text, start: { type: 'integer', minimum: 0, maximum: 1000000 }, limit: { type: 'integer', minimum: 1, maximum: 1000 } }, [], 'read', (c, a) => c.listDownloads(a)],
   ['ls', 'List a NAS directory', { path: text, show_hidden: boolean }, ['path'], 'read', (c, a) => c.ls(a.path, { hidden: a.show_hidden })],
   ['info', 'NAS file metadata', { path: text }, ['path'], 'read', (c, a) => c.info(a.path)],
   ['search', 'Search filenames', { keyword: text, path: text }, ['keyword', 'path'], 'read', (c, a) => c.search(a.keyword, a.path)],
@@ -24,11 +31,10 @@ const definitions = [
 
 function matches(value, schema) {
   if (schema.anyOf) return schema.anyOf.some(s => matches(value, s));
-  if (schema.type === 'string') return typeof value === 'string' && value.length >= (schema.minLength ?? 0);
+  if (schema.type === 'string') return typeof value === 'string' && value.length >= schema.minLength;
   if (schema.type === 'boolean') return typeof value === 'boolean';
   if (schema.type === 'integer') return Number.isSafeInteger(value) && value >= schema.minimum && value <= schema.maximum;
-  if (schema.type === 'array') return Array.isArray(value) && value.length >= schema.minItems && value.every(v => matches(v, schema.items));
-  return false;
+  return Array.isArray(value) && value.length >= schema.minItems && value.every(v => matches(v, schema.items));
 }
 
 export function createMcpHandler(options = {}) {
@@ -52,7 +58,7 @@ export function createMcpHandler(options = {}) {
       if (!params || typeof params.protocolVersion !== 'string') return error(-32602, 'protocolVersion is required');
       state = 'initializing';
       const supported = ['2025-11-25', '2025-06-18', '2025-03-26', '2024-11-05'];
-      return result({ protocolVersion: supported.includes(params.protocolVersion) ? params.protocolVersion : supported[0], capabilities: { tools: { listChanged: false } }, serverInfo: { name: 'zspace-cli', version: '0.1.0' } });
+      return result({ protocolVersion: supported.includes(params.protocolVersion) ? params.protocolVersion : supported[0], capabilities: { tools: { listChanged: false } }, serverInfo: { name: 'zspace-cli', version: pkg.version } });
     }
     if (method === 'ping') return result({});
     if (state !== 'ready') return error(-32000, 'Initialize the MCP session first');

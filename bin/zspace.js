@@ -22,6 +22,12 @@ Usage: zspace <command> [arguments] [options]
   rm <path-or-glob>                Delete (--yes --allow-delete)
   up <local-file> <remote-dir>     Upload (--yes, --name)
   down <remote-path-or-glob> [dir] Download (--overwrite to replace files)
+  cloud-status <baidu|quark>      Check the connected cloud account
+  cloud-ls <baidu|quark> [path]   List cloud files (--parent-id for Quark)
+  cloud-down <provider> <dir>     Download cloud files to NAS (--file-ids, --folder-ids, --yes)
+  cloud-tasks <provider>          Cloud transfer task status
+  download-add <link> <NAS-dir>   Add a NAS download task (--yes)
+  downloads                      List NAS download tasks (--type, --status)
   skill [dir]                     Install bundled skills (--list, --only a,b)
   scan <skill> <mounted-directory> Read-only local/NAS-share scanner
   diff <old-report> <new-report>   Compare nas-report snapshots
@@ -43,7 +49,8 @@ async function main(argv) {
   if (o.help || !p.length) { console.log(help); return; }
   const command = p.shift();
   const arities = { check: [0, 0], pools: [0, 0], disks: [0, 0], ls: [0, 1], info: [1, 1], find: [1, 2], tree: [0, 1],
-    rename: [2, 2], mkdir: [2, 2], mv: [2, 2], cp: [2, 2], rm: [1, 1], up: [2, 2], down: [1, 2], skill: [0, 1], scan: [2, 2], diff: [2, 2], coverage: [2, 2] };
+    rename: [2, 2], mkdir: [2, 2], mv: [2, 2], cp: [2, 2], rm: [1, 1], up: [2, 2], down: [1, 2], skill: [0, 1], scan: [2, 2], diff: [2, 2], coverage: [2, 2],
+    'cloud-status': [1, 1], 'cloud-ls': [1, 2], 'cloud-down': [2, 2], 'cloud-tasks': [1, 1], 'download-add': [2, 2], downloads: [0, 0] };
   const arity = arities[command];
   if (!arity) throw new Error(`Unknown command: ${command}`);
   if (p.length < arity[0] || p.length > arity[1]) throw new Error(`Invalid arguments for ${command}; see zspace --help`);
@@ -64,6 +71,12 @@ async function main(argv) {
       case 'check': data = await client.check(); if (!data.connected) process.exitCode = 1; break;
       case 'pools': data = await client.poolInfo(); break;
       case 'disks': data = await client.diskStats(); break;
+      case 'cloud-status': data = await client.cloudStatus(p[0]); break;
+      case 'cloud-ls': data = await client.cloudList(p[0], { path: p[1], parentId: o['parent-id'], page: integer(o.page, 1, 'page'), limit: integer(o.limit, 100, 'limit'), cursor: o.cursor === undefined ? undefined : JSON.parse(o.cursor) }); break;
+      case 'cloud-down': data = await client.cloudDownload(p[0], p[1], { fileIds: o['file-ids']?.split(','), folderIds: o['folder-ids']?.split(',') }); break;
+      case 'cloud-tasks': data = await client.cloudTasks(p[0]); break;
+      case 'download-add': data = await client.addDownload(p[0], p[1]); break;
+      case 'downloads': data = await client.listDownloads({ type: o.type, status: o.status, start: integer(o.start, 0, 'start'), limit: integer(o.limit, 50, 'limit') }); break;
       case 'ls': data = await client.ls(p[0], { hidden: o.hidden }); break;
       case 'info': data = await client.info(p[0]); break;
       case 'find': data = await client.search(p[0], p[1], { limit: integer(o.limit, 100, 'limit') }); break;
@@ -81,7 +94,7 @@ async function main(argv) {
   if (o.json || !Array.isArray(data)) console.log(JSON.stringify(data, null, 2));
   else for (const row of data) console.log(typeof row === 'string' ? row : command === 'tree'
     ? `${'  '.repeat(row.depth)}${row.isDir ? '📁' : '📄'} ${row.name}`
-    : `${row.isDir ? 'DIR ' : 'FILE'} ${String(row.size ?? '').padStart(12)} ${o.long ? row.path : row.name}`);
+    : `${row.isDir ? 'DIR ' : 'FILE'} ${String(row.size).padStart(12)} ${o.long ? row.path : row.name}`);
 }
 
 // User-controlled names are printed as data; no shell or source-code interpolation.

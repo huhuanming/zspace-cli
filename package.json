@@ -1,6 +1,6 @@
 {
   "name": "zspace-cli",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Dependency-free Node.js CLI, SDK and MCP server for ZSpace NAS",
   "type": "module",
   "license": "MIT",
@@ -9,7 +9,11 @@
   "bin": { "zspace": "bin/zspace.js", "zspace-mcp": "bin/zspace-mcp.js" },
   "exports": { ".": "./src/client.js", "./mcp": "./src/mcp.js" },
   "files": ["bin", "src", "skills", "README.md", "SECURITY.md", "NOTICE", "LICENSE"],
-  "scripts": { "test": "node --test", "check": "node --check src/client.js && node --check src/mcp.js && node --check bin/zspace.js && node --check bin/zspace-mcp.js" },
+  "scripts": {
+    "test": "node --test --experimental-test-module-mocks",
+    "test:coverage": "node --test --experimental-test-module-mocks --experimental-test-coverage --test-coverage-include='src/**/*.js' --test-coverage-include='bin/**/*.js' --test-coverage-lines=100 --test-coverage-branches=100 --test-coverage-functions=100 --test-reporter=spec --test-reporter-destination=stdout --test-reporter=./scripts/coverage-report.mjs --test-reporter-destination=stderr",
+    "check": "node --check src/client.js && node --check src/mcp.js && node --check bin/zspace.js && node --check bin/zspace-mcp.js"
+  },
   "repository": { "type": "git", "url": "git+https://github.com/huhuanming/zspace-cli.git" },
   "homepage": "https://github.com/huhuanming/zspace-cli#readme",
   "bugs": { "url": "https://github.com/huhuanming/zspace-cli/issues" },

@@ -10,6 +10,7 @@ import { fileURLToPath } from 'node:url';
 import { createMcpHandler, serveMcp } from '../src/mcp.js';
 import { scan, scannerNames, backupCoverage, diffReports } from '../src/scanners.js';
 import { installSkills } from '../src/skills.js';
+import pkg from '../package.json' with { type: 'json' };
 
 const credentials = { token: 'fake-test-token', nasId: 'fake-nas' };
 const request = (method, params = {}, id = 1) => ({ jsonrpc: '2.0', id, method, params });
@@ -27,7 +28,7 @@ test('MCP handshake, schema validation and tool capability gates', async () => {
   assert.equal((await handler(request('tools/list'))).error.code, -32000);
   await initialize(handler);
   const names = (await handler(request('tools/list'))).result.tools.map(t => t.name);
-  assert.equal(names.length, 7); assert.ok(!names.includes('zspace_remove'));
+  assert.equal(names.length, 11); assert.ok(!names.includes('zspace_remove'));
   assert.equal((await handler(request('tools/call', { name: 'zspace_remove', arguments: { paths: '/sata1/my/data/a' } }))).error.code, -32602);
   assert.equal((await handler(request('tools/call', { name: 'zspace_tree', arguments: { path: '/', depth: 101 } }))).error.code, -32602);
   assert.equal((await handler(request('tools/call', { name: 'zspace_ls', arguments: { path: '/', arbitrary: 'value' } }))).error.code, -32602);
@@ -35,7 +36,7 @@ test('MCP handshake, schema validation and tool capability gates', async () => {
   assert.throws(() => createMcpHandler({ credentials, allowWrites: true, root: '//' }), /specific/);
   assert.throws(() => createMcpHandler({ credentials, allowDelete: true }), /requires/);
   const full = createMcpHandler({ credentials, root: '/sata1/my/data/test', localRoot: os.tmpdir(), allowWrites: true, allowDelete: true });
-  await initialize(full); assert.equal((await full(request('tools/list'))).result.tools.length, 14);
+  await initialize(full); assert.equal((await full(request('tools/list'))).result.tools.length, 20);
   assert.equal((await full(request('tools/call', { name: 'zspace_remove', arguments: { paths: '/sata1/my/data/other' } }))).result.isError, true);
 });
 
@@ -48,7 +49,7 @@ test('MCP stdio stays newline JSON and returns parse errors', async () => {
   ]);
   await serveMcp({ input, output: new Writable({ write(chunk, _, cb) { output += chunk.toString(); cb(); } }), credentials });
   const messages = output.trim().split('\n').map(line => JSON.parse(line));
-  assert.equal(messages.length, 3); assert.equal(messages[1].error.code, -32700); assert.equal(messages[2].result.tools.length, 7);
+  assert.equal(messages.length, 3); assert.equal(messages[1].error.code, -32700); assert.equal(messages[2].result.tools.length, 11);
 });
 
 test('all nine scanners report without changing source files', async t => {
@@ -113,7 +114,7 @@ test('skills install selectively and never overwrite; CLI parses literal argumen
   await assert.rejects(installSkills(root, { only: 'zspace-nas' }), /already exists/);
   const run = promisify(execFile);
   const bin = fileURLToPath(new URL('../bin/zspace.js', import.meta.url));
-  assert.equal((await run(process.execPath, [bin, '--version'])).stdout.trim(), '0.1.0');
+  assert.equal((await run(process.execPath, [bin, '--version'])).stdout.trim(), pkg.version);
   const report = JSON.parse((await run(process.execPath, [bin, 'scan', 'nas-report', root, '--json'])).stdout); assert.equal(report.readOnly, true);
   await assert.rejects(run(process.execPath, [bin, 'mkdir', '/sata1/my/data', 'a']), /Writes are disabled/);
 });

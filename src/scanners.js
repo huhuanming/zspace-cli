@@ -185,7 +185,7 @@ export async function scan(skill, root, options = {}) {
   const occupied = new Set(data.files.map(f => f.path));
   const target = wanted => { let p = wanted; let count = 1; while (occupied.has(p)) { const ext = path.extname(wanted); p = `${wanted.slice(0, wanted.length - ext.length)}__${++count}${ext}`; } occupied.add(p); return p; };
   if (skill === 'nas-report') report.recommendations = Object.entries(byCategory).sort((a, b) => b[1].size - a[1].size).map(([category]) => ({ category, skill: ({ photo: 'photo-organizer', audio: 'music-organizer', doc: 'work-organizer', design: 'portfolio-organizer', backup: 'backup-auditor' })[category] ?? 'file-sorter' }));
-  if (skill === 'dedup-finder') { report.groups = await duplicates(data, o.minSize ?? 1); report.reclaimableBytes = report.groups.reduce((n, g) => n + g.reclaimableBytes, 0); }
+  if (skill === 'dedup-finder') { report.groups = await duplicates(data, o.minSize); report.reclaimableBytes = report.groups.reduce((n, g) => n + g.reclaimableBytes, 0); }
   if (skill === 'file-sorter') {
     const existingCategories = new Set([...Object.keys(categories), ...Object.values(labels), ...(o.keep ?? [])]);
     const projects = new Set(groupsBy(data.files, f => f.relative.split(path.sep)[0]).filter(g => g.length >= o.projectMinFiles && new Set(g.map(f => f.category)).size >= 2).map(g => g[0].relative.split(path.sep)[0]));
@@ -207,7 +207,7 @@ export async function scan(skill, root, options = {}) {
   if (skill === 'music-organizer') {
     let tagReads = 0;
     for (const f of data.files.filter(f => f.category === 'audio')) {
-      const tags = o.readTags === false || tagReads >= (o.tagLimit ?? 100) ? {} : await musicTags(f.path, data.root).catch(e => { data.errors.push({ path: f.path, reason: e.message }); return {}; }); tagReads++;
+      const tags = o.readTags === false || tagReads >= o.tagLimit ? {} : await musicTags(f.path, data.root).catch(e => { data.errors.push({ path: f.path, reason: e.message }); return {}; }); tagReads++;
       if (!tags.artist || !tags.album) issue('missing-tags', f, { tags, review: true });
       else {
         const track = /^\d+/.exec(tags.track ?? '')?.[0]; const name = `${track ? `${track.padStart(2, '0')} - ` : ''}${safeName(tags.title ?? path.basename(f.name, path.extname(f.name)))}${path.extname(f.name)}`;
@@ -235,7 +235,7 @@ export async function scan(skill, root, options = {}) {
       if (!data.files.some(f => path.dirname(f.path) === dir && /cover|封面/i.test(f.name))) issue('missing-cover', { path: dir });
       if (!data.files.some(f => f.path.startsWith(`${dir}${path.sep}`) && /final|export|成品|交付/i.test(f.relative))) issue('missing-deliverables', { path: dir });
     }
-    for (const f of data.files.filter(f => f.category === 'design' && f.size > (o.largeGb ?? 1) * 1e9)) issue('large-source', f, { size: f.size });
+    for (const f of data.files.filter(f => f.category === 'design' && f.size > o.largeGb * 1e9)) issue('large-source', f, { size: f.size });
   }
   if (skill === 'download-cleaner') for (const f of data.files) {
     const ext = path.extname(f.name).slice(1).toLowerCase();

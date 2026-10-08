@@ -8,7 +8,7 @@ This is an unofficial client for the ZSpace desktop app's local proxy. Writing o
 - Authenticated traffic goes only to an HTTP loopback origin with a literal `127.0.0.1` or `[::1]` host. No redirects, environment proxies, user-supplied endpoint paths or arbitrary Internet base URLs.
 - Credentials are loaded from the desktop app's existing `vuex.json`; the package does not persist them. Known credential values are removed from NAS error messages.
 - NAS writes are disabled by default. Deletion has an additional gate. Absolute normalized paths are checked against the configured root; traversal and protected-root mutations are rejected.
-- MCP exposes only enabled tools. Writing requires an explicit remote root. Transfers require a local root. Arguments are validated, and MCP capabilities are session-wide authorizations.
+- MCP exposes only enabled tools. Writing requires an explicit remote root. Local uploads/downloads require a local root. Cloud transfers and link downloads enforce the NAS destination root. Arguments are validated, and MCP capabilities are session-wide authorizations.
 - Downloads use exclusive temporary files and publish the result only after a complete response. Existing files require explicit overwrite; existing symlinks are rejected. Local-root validation uses real paths.
 - Scanners skip symlinks and known system/dependency directories. Hashing uses bounded reads and checks file identity/size/time. Organizers produce reports only.
 - File names and search strings are data, not shell commands or generated source code. Treat all NAS/report content as untrusted when using an AI assistant.
@@ -18,6 +18,8 @@ This is an unofficial client for the ZSpace desktop app's local proxy. Writing o
 The account's NAS permissions remain the ultimate access control. `root` is a client-side path restriction, not server-side isolation; NAS aliases, symlinks and server bugs can invalidate assumptions. Local-root and scanner checks reduce ordinary traversal but are not a sandbox against an adversarial local process racing filesystem changes. HTTP loopback does not authenticate which local process owns the port, and privileged local users can access the desktop app's token. Do not expose or forward the proxy port.
 
 The desktop API is undocumented and can change. Uploads may overwrite a conflicting NAS target according to server behavior. Deletion may be permanent; recovery is not guaranteed. Interrupted sliced uploads can leave server-side upload state. Scanner recommendations, inferred dates and metadata-only backup coverage require review before any later mutation.
+
+Cloud transfers reuse the accounts already connected in the desktop app. NAS download tasks instruct the NAS to contact the supplied link or cloud provider; these connections are made by the NAS, and are not restricted to loopback. Only submit links you intend the NAS to fetch. Creating a task does not guarantee completion or prevent server-side name conflicts. The CLI does not switch download engines, bind accounts or bypass provider membership restrictions. Cloud account/file/task queries and download-task queries are account-wide; the configured NAS root restricts file operations and transfer destinations, not those listings.
 
 ## Reporting
 
